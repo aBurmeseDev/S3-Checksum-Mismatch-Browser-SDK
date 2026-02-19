@@ -80,9 +80,7 @@ node dist/index.mjs
 ## Environment
 
 - Node.js 18+ (tested with Node 20)
-- SDK versions:
-  - `@aws-sdk/client-s3@3.812.0`
-  - `@aws-sdk/lib-storage@3.812.0`
+- SDK version: `@aws-sdk/client-s3@3.994.0` (latest as of Feb 2026)
 
 ## Files
 
