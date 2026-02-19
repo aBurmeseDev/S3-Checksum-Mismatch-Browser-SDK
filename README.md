@@ -1,4 +1,4 @@
-# Issue #6910 Reproduction
+# S3 Checksum Mismatch in Browser Reproduction
 
 Minimal reproduction for [aws-sdk-js-v3 issue #6910](https://github.com/aws/aws-sdk-js-v3/issues/6910) - Checksum mismatch when fetching compressed files from S3 in browser.
 
@@ -23,7 +23,7 @@ Response metadata: {
 ✓ Transformed to web stream
 ✓ Created Response object
 Reading stream (this triggers checksum validation)...
-✗ ERROR: Checksum mismatch: expected "uboIqQ==" but received "xrd+Yw==" 
+✗ ERROR: Checksum mismatch: expected "uboIqQ==" but received "xrd+Yw=="
          in response header "x-amz-checksum-crc32".
 ```
 
@@ -35,16 +35,34 @@ Reading stream (this triggers checksum validation)...
 4. **SDK validates**: Calculates checksum of decompressed data (`"xrd+Yw=="`)
 5. **Mismatch**: Compressed checksum ≠ Decompressed checksum → Error
 
+## Important: When This Issue Occurs
+
+This issue **only** happens when **ALL** of these conditions are met:
+
+1. **The S3 object has `Content-Encoding` metadata set** (e.g., `br`, `gzip`, `deflate`)
+   - This must be **manually added** to the object metadata in S3
+   - S3 doesn't automatically set this header when uploading compressed files
+   - Without this header, the browser won't auto-decompress
+2. **Checksum validation is enabled** (default behavior or `ChecksumMode: "ENABLED"`)
+
+3. **The response stream is actually consumed** (e.g., `response.text()`, `response.json()`, reading the stream)
+   - Just fetching the object without consuming the stream won't trigger the error
+   - The checksum validation happens during stream consumption
+
+**If any of these conditions is not met, the issue won't occur.**
+
 ## Testing the Workaround
 
 To verify the workaround works:
 
 1. Edit `index.mjs` and uncomment this line:
+
    ```javascript
    responseChecksumValidation: "WHEN_REQUIRED",
    ```
 
 2. Run again:
+
    ```bash
    npm run reproduce
    ```
@@ -61,6 +79,32 @@ To verify the workaround works:
 - **File**: `uncompressed.txt.br` (Brotli compressed)
 - **Metadata**: `Content-Encoding: br`, `Content-Type: text/plain`
 - **Checksum**: CRC32 of compressed file
+
+### How to Set Content-Encoding Metadata
+
+The `Content-Encoding` metadata must be manually set on the S3 object. You can do this via:
+
+**AWS CLI:**
+
+```bash
+aws s3 cp file.txt.br s3://bucket/file.txt.br \
+  --content-encoding br \
+  --metadata-directive REPLACE
+```
+
+**SDK:**
+
+```javascript
+await s3.putObject({
+	Bucket: "bucket",
+	Key: "file.txt.br",
+	Body: compressedData,
+	ContentEncoding: "br",
+	ChecksumAlgorithm: "CRC32",
+});
+```
+
+**Note**: S3 does **not** automatically set `Content-Encoding` when you upload a `.br`, `.gz`, or other compressed file. You must explicitly set it.
 
 ## Manual Steps
 
