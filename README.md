@@ -43,7 +43,7 @@ This issue **only** happens when **ALL** of these conditions are met:
    - This must be **manually added** to the object metadata in S3
    - S3 doesn't automatically set this header when uploading compressed files
    - Without this header, the browser won't auto-decompress
-2. **Checksum validation is enabled** (default behavior or `ChecksumMode: "ENABLED"`)
+2. **Checksum validation is enabled** (default behavior)
 
 3. **The response stream is actually consumed** (e.g., `response.text()`, `response.json()`, reading the stream)
    - Just fetching the object without consuming the stream won't trigger the error
